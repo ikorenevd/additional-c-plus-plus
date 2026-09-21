@@ -38,11 +38,6 @@
 *.fdb_latexmk
 *.fls
 
-# Generated PDFs
-# Remove this line if you want to keep compiled PDFs in Git.
-*.pdf
-
-
 # ============================================================
 # C / C++
 # ============================================================
