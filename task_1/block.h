@@ -47,6 +47,8 @@ class block
     private:
         double* m_start{};
         size_t m_size{};
+
+        bool m_owner = 0;
 };
 
 #endif

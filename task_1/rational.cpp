@@ -1,10 +1,9 @@
-#include <rational.h>
+#include "rational.h"
 
 #include <cassert>
-#include <cmath>
+#include <cstring>
 #include <limits>
 #include <numeric>
-#include <bit>
 
 rational::rational() : numerator(0), denominator(1)
 {
@@ -77,7 +76,7 @@ void rational::from_float(float value)
         numerator = -numerator;
 }
 
-rational& rational::add(const rational& rhs)
+rational &rational::add(const rational &rhs)
 {
     int64_t common = std::gcd(denominator, rhs.denominator);
     const int64_t left_factor = rhs.denominator / common;
@@ -110,7 +109,7 @@ rational& rational::add(const rational& rhs)
     return *this;
 }
 
-rational& rational::subtract(const rational& rhs)
+rational &rational::subtract(const rational &rhs)
 {
     int64_t common = std::gcd(denominator, rhs.denominator);
 
@@ -143,7 +142,7 @@ rational& rational::subtract(const rational& rhs)
     return *this;
 }
 
-rational& rational::multiply(const rational& rhs)
+rational &rational::multiply(const rational &rhs)
 {
     int64_t a = numerator,
             b = denominator;
@@ -174,27 +173,27 @@ rational& rational::multiply(const rational& rhs)
     return *this;
 }
 
-rational& rational::divide(const rational& rhs)
+rational &rational::divide(const rational &rhs)
 {
-    assert(rhs.numerator != 0 && "Cannot divide a rational by zero");
-    
+    assert(rhs.numerator != 0 && "Division by zero");
+
     if (numerator == 0)
         return *this;
-    
+
     rational result(numerator, rhs.numerator);
     const rational factor(rhs.denominator, denominator);
     
     result.multiply(factor);
-    
+
     numerator = result.numerator;
     denominator = result.denominator;
-    
+
     return *this;
 }
 
 void rational::from_num_denom(int64_t num, int64_t denom)
 {
-    assert(denom != 0 && "A denominator cannot be equal zero");
+    assert(denom != 0 && "Zero denominator");
 
     if (num == 0)
     {
@@ -206,7 +205,7 @@ void rational::from_num_denom(int64_t num, int64_t denom)
     const int64_t divisor = (denom == -1) ? 1 : std::gcd(num % denom, denom);
     num /= divisor;
     denom /= divisor;
-    
+
     if (denom < 0)
     {
         num = -num;
@@ -217,7 +216,7 @@ void rational::from_num_denom(int64_t num, int64_t denom)
     denominator = denom;
 }
 
-void rational::to_num_denom(int64_t& num, int64_t& denom) const
+void rational::to_num_denom(int64_t &num, int64_t &denom) const
 {
     num = numerator;
     denom = denominator;
