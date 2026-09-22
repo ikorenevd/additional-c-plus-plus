@@ -26,9 +26,12 @@ CXX = g++
 CXXFLAGS += -std=c++17 $(LINUX_CXXFLAGS)
 endif
 
-.PHONY: all clean
+.PHONY: all test clean
 
 all: $(TARGET)
+
+test: $(TARGET)
+	./$(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(OBJECTS) $(LDLIBS) -o $@
