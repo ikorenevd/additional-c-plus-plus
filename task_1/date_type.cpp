@@ -30,12 +30,13 @@ namespace
     int days_in_month(int mon, int64_t year)
     {
         static const int lengths[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-        return lengths[mon - 1] + ((mon == 2 && is_leap_year(year)) ? 1 : 0);
+        return lengths[mon - 1] + (((mon == 2) && is_leap_year(year)) ? 1 : 0);
     }
 
     int64_t time_of_day(int64_t sec)
     {
         const int64_t rem = sec % seconds_per_day;
+        // return rem;
         return (rem < 0) ? (rem + seconds_per_day) : rem;
     }
 }
@@ -46,7 +47,9 @@ date_type::date_type(int64_t unix_epoch_sec) : m_unix_epoch_sec(unix_epoch_sec)
 
 void date_type::set_date(int dd, int mm, int yy)
 {
-    assert(dd > 0 && mm > 0 && yy >= 1970);
+    assert(mm >= 1 && mm <= 12 && "mm out of range");
+    assert(dd >= 1 && dd <= days_in_month(mm, yy) && "dd out of range");
+    assert(yy >= 1900 && "year must be >= 1900");
 
     const int64_t month_index = static_cast<int64_t>(mm) - 1;
     const int64_t year_offset = floor_divide(month_index, 12);
@@ -85,23 +88,40 @@ void date_type::get_date(int &dd, int &mm, int &yy) const
     int64_t years_1 = days / 365 < 3 ? days / 365 : 3;
     days -= years_1 * 365;
 
-    // year >= 1, days теперь равен номеру дня в году.
+    
     int64_t year = 1 + years_400 * 400 + years_100 * 100 + years_4 * 4 + years_1;
+    assert(year >= std::numeric_limits<int>::min() && year <= std::numeric_limits<int>::max() && "year overflow");
+    // year >= 1, days теперь равен номеру дня в году.
+    // {
+    //     // начала месяцев, считая дни с нуля - невисокосный, в случае високосного добавить 1.
+    //     static const int month_starts[12] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
 
-    // начала месяцев, считая дни с нуля - невисокосный, в случае високосного добавить 1.
-    static const int month_starts[12] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+    //     for (int i = 0; i < 12; i++)
+    //         if (days < month_starts[i] + ((i > 1) ? is_leap_year(year) : 0))
+    //         {
+    //             mm = i + 1;
+    //             break;
+    //         }
+        
 
-    for (int i = 0; i < 12; i++)
-        if (days < month_starts[i] + is_leap_year(year));
-            mm = i + 1;
+    //     dd = static_cast<int>(days - (month_starts[mm - 1] + is_leap_year(year)) + 1);
+    //     yy = static_cast<int>(year);
+    // }
 
-    dd = static_cast<int>(days - (month_starts[mm - 1] + is_leap_year(year)) + 1);
+    mm = 1;
+    while (days >= days_in_month(mm, year))
+    {
+        days -= days_in_month(mm, year);
+        ++mm;
+    }
+
+    dd = static_cast<int>(days) + 1;
     yy = static_cast<int>(year);
 }
 
 void date_type::set_time(int hh, int mm, int ss)
 {
-    assert(hh >= 0 && mm >= 0 && ss >= 0);
+    // assert(hh >= 0 && mm >= 0 && ss >= 0);
  
     const int64_t seconds = static_cast<int64_t>(hh) * 3600 + static_cast<int64_t>(mm) * 60 + ss;
     const int64_t delta = seconds - time_of_day(m_unix_epoch_sec);

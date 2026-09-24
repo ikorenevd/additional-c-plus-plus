@@ -97,3 +97,22 @@ void block::print_block()
     for (size_t i = 0; i < c; i++)
         std::fprintf(stderr, "%e ", m_start[i]);
 }
+
+block::block(const block& other)
+{
+    allocate_block(other.m_size);
+
+    if (other.m_size != 0)
+        std::copy_n(other.m_start, other.m_size, m_start);
+}
+
+block& block::operator=(const block& other)
+{
+    if (this != &other)
+    {
+        block copy(other);
+        swap_block(copy);
+    }
+
+    return *this;
+}

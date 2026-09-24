@@ -1,7 +1,6 @@
 #include "rational.h"
 
 #include <cassert>
-#include <cstring>
 #include <limits>
 #include <numeric>
 
@@ -26,16 +25,23 @@ float rational::to_float() const
 
 void rational::from_float(float value)
 {
-    std::uint32_t bits = std::__bit_cast<std::uint32_t>(value);
+    union { float val; std::uint32_t bits; } un;
+    un.val = value;
+    std::uint32_t sign = un.bits >> 31;
+    std::uint32_t exponent = (un.bits >> 23) & 0xFFu;
+    std::uint32_t fraction = un.bits & 0x7FFFFFu;
 
-    std::uint32_t sign     = bits >> 31;
-    std::uint32_t exponent = (bits >> 23) & 0xFFu;
-    std::uint32_t fraction = bits & 0x7FFFFFu;
 
     assert(exponent != 0xFFu);
 
     numerator = 0;
     denominator = 1;
+
+    if (sign != 0 && exponent == (127 + 63) && fraction == 0)
+    {
+        numerator = std::numeric_limits<int64_t>::min();
+        return;
+    }
 
     if (exponent == 0 && fraction == 0)
         return;
@@ -202,12 +208,20 @@ void rational::from_num_denom(int64_t num, int64_t denom)
         return;
     }
 
+    if (denom == std::numeric_limits<int64_t>::min())
+    {
+        assert(num % 2 == 0 && "denominator overflow");
+        num /= 2;
+        denom /= 2;
+    }
+
     const int64_t divisor = (denom == -1) ? 1 : std::gcd(num % denom, denom);
     num /= divisor;
     denom /= divisor;
 
     if (denom < 0)
     {
+        assert(num != std::numeric_limits<int64_t>::min() && "numerator overflow");
         num = -num;
         denom = -denom;
     }

@@ -26,7 +26,7 @@ CXX = g++
 CXXFLAGS += -std=c++17 $(LINUX_CXXFLAGS)
 endif
 
-.PHONY: all test clean
+.PHONY: all test test-sanitize clean
 
 all: $(TARGET)
 
@@ -44,3 +44,13 @@ clean:
 	rm -rf build
 
 -include $(DEPFILES)
+
+# Separate binary: sanitizer flags must not reuse normal object files.
+SANITIZER_TARGET := build/task_1_sanitized
+
+$(SANITIZER_TARGET): $(SOURCES) $(wildcard *.h) Makefile
+	@mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all $(LDFLAGS) $(SOURCES) $(LDLIBS) -o $@
+
+test-sanitize: $(SANITIZER_TARGET)
+	./$(SANITIZER_TARGET)

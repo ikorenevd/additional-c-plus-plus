@@ -44,6 +44,9 @@ class block
         // fprintf (stderr, "%e ", m_start[i])
         void print_block();
 
+        // чтоб не было утечек памяти
+        block(const block& other);
+        block& operator=(const block& other);
     private:
         double* m_start{};
         size_t m_size{};
