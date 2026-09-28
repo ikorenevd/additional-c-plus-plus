@@ -4,38 +4,69 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
-double *block::allocate_block(size_t size)
+namespace
 {
-    double *start = (size == 0) ? nullptr : new double[size]{};
+    double min_element(const double* arr, size_t len)
+    {
+        if (len == 0)
+            return 0.0;
 
-    if (m_owner)
-        delete[] m_start;
+        double result = arr[0];
+
+        for (size_t i = 1; i < len; ++i)
+            if (arr[i] < result)
+                result = arr[i];
+
+        return result;
+    }
+
+    double max_element(const double* arr, size_t len)
+    {
+        if (len == 0)
+            return 0.0;
+
+        double result = arr[0];
+
+        for (size_t i = 1; i < len; ++i)
+            if (arr[i] > result)
+                result = arr[i];
+
+        return result;
+    }
+}
+
+double* block::allocate_block(size_t size)
+{
+    double* start = size == 0 ? nullptr : new double[size]{};
+
+    free_block();
+
     m_start = start;
-
-    m_owner = (size != 0);
     m_size = size;
+    m_owner = size != 0;
 
     return m_start;
 }
 
-void block::link_block(double *start, size_t size)
+void block::link_block(double* start, size_t size)
 {
     assert((start != nullptr || size == 0) && "Null array");
 
-    if (m_owner && m_start == start)
-        {
-            assert(size <= m_size && "Bad size");
+    if (start == m_start)
+    {
+        assert(size <= m_size && "Array size exceeds original size");
+        if (size <= m_size)
             m_size = size;
-            return;
-        }
+        return;
+    }
 
-    if (m_owner && m_start != start)
-        delete[] m_start;
+    free_block();
 
     m_start = start;
-    m_owner = 0;
-    m_size = size;
+    m_size = start == nullptr ? 0 : size;
+    m_owner = false;
 }
 
 void block::free_block()
@@ -45,65 +76,72 @@ void block::free_block()
 
     m_start = nullptr;
     m_size = 0;
-    m_owner = 0;
+    m_owner = false;
 }
 
-void block::swap_block(block &rhs)
+void block::swap_block(block& rhs)
 {
     std::swap(m_start, rhs.m_start);
     std::swap(m_size, rhs.m_size);
     std::swap(m_owner, rhs.m_owner);
 }
 
-void block::copy_to(block &dest)
+void block::copy_to(block& dest)
 {
-    size_t c = std::min(m_size, dest.m_size);
-    if (c > 0)
-        std::memmove(dest.m_start, m_start, c * sizeof(double));
+    const size_t count = std::min(m_size, dest.m_size);
+
+    if (count != 0)
+        std::memmove(dest.m_start, m_start, count * sizeof(double));
 }
 
-void block::copy_from(block &src)
+void block::copy_from(block& src)
 {
-    size_t c = std::min(m_size, src.m_size);
-    if (c > 0)
-        std::memmove(m_start, src.m_start, c * sizeof(double));
+    const size_t count = std::min(m_size, src.m_size);
+    if (count != 0)
+        std::memmove(m_start, src.m_start, count * sizeof(double));
 }
 
-double block::add_block(const block &rhs)
+double block::add_block(const block& rhs)
 {
-    assert(m_size != 0 && "Empty block");
-    size_t c = std::min(m_size, rhs.m_size);
+    if (m_size == 0)
+        return 0.0;
 
-    for (size_t i = 0; i < c; i++)
+    const size_t count = std::min(m_size, rhs.m_size);
+
+    for (size_t i = 0; i < count; ++i)
         m_start[i] += rhs.m_start[i];
 
-    return *std::max_element(m_start, m_start + m_size);
+    return max_element(m_start, m_size);
 }
 
-double block::sub_block(const block &rhs)
+double block::sub_block(const block& rhs)
 {
-    assert(m_size != 0 && "Empty block");
-    size_t c = std::min(m_size, rhs.m_size);
+    if (m_size == 0)
+        return 0.0;
 
-    for (size_t i = 0; i < c; i++)
+    const size_t count = std::min(m_size, rhs.m_size);
+
+    for (size_t i = 0; i < count; ++i)
         m_start[i] -= rhs.m_start[i];
 
-    return *std::min_element(m_start, m_start + m_size);
+    return min_element(m_start, m_size);
 }
 
 void block::print_block()
 {
-    size_t c = std::min(m_size, size_t{ 20 });
-    for (size_t i = 0; i < c; i++)
+    const size_t count = std::min(m_size, size_t{20});
+
+    for (size_t i = 0; i < count; ++i)
         std::fprintf(stderr, "%e ", m_start[i]);
 }
 
 block::block(const block& other)
 {
     allocate_block(other.m_size);
+    m_owner = true;
 
-    if (other.m_size != 0)
-        std::copy_n(other.m_start, other.m_size, m_start);
+    if (m_size != 0)
+        std::memcpy(m_start, other.m_start, m_size * sizeof(double));
 }
 
 block& block::operator=(const block& other)

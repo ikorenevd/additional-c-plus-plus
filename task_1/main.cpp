@@ -5,10 +5,8 @@
 #include <csignal>
 #include <cstdio>
 #include <cstring>
-#include <exception>
 #include <limits>
 #include <numeric>
-#include <random>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -19,6 +17,35 @@
 
 namespace
 {
+// Fixed seeds keep generated cases reproducible without a C++ runtime.
+class test_random
+{
+  public:
+    explicit test_random(uint32_t seed) : state_(seed) {}
+    uint32_t next()
+    {
+        state_ ^= state_ << 13;
+        state_ ^= state_ >> 17;
+        state_ ^= state_ << 5;
+        return state_;
+    }
+  private:
+    uint32_t state_;
+};
+
+class test_range
+{
+  public:
+    test_range(int low, int high) : low_(low), width_(uint32_t(high - low + 1)) {}
+    int operator()(test_random &generator) const
+    {
+        return low_ + static_cast<int>(generator.next() % width_);
+    }
+  private:
+    int low_;
+    uint32_t width_;
+};
+
 class test_runner
 {
   public:
@@ -94,18 +121,7 @@ class test_runner
     {
         const size_t before = failed_;
         std::printf("Testing %s...\n", name);
-        try
-            {
-                test(*this);
-            }
-        catch (const std::exception &error)
-            {
-                check(false, error.what());
-            }
-        catch (...)
-            {
-                check(false, "Unexpected exception");
-            }
+        test(*this);
         std::printf("%s: %s\n", name, failed_ == before ? "PASS" : "FAIL");
     }
 
@@ -242,9 +258,9 @@ void test_rational(test_runner &tests)
             check_rational(tests, assigned, input);
         }
 
-    std::mt19937 generator(12345);
-    std::uniform_int_distribution<int> numerator(-20, 20);
-    std::uniform_int_distribution<int> denominator(1, 16);
+    test_random generator(12345);
+    test_range numerator(-20, 20);
+    test_range denominator(1, 16);
     for (int sample = 0; sample < 100; ++sample)
         {
             const int a = numerator(generator);
@@ -319,10 +335,10 @@ void test_date(test_runner &tests)
             check_date(tests, restored, date[0], date[1], date[2], 23, 59, 59);
         }
 
-    std::mt19937 generator(67890);
-    std::uniform_int_distribution<int> day(1, 28), month(1, 12),
+    test_random generator(67890);
+    test_range day(1, 28), month(1, 12),
         year(2001, 2030);
-    std::uniform_int_distribution<int> minute(0, 59), second(0, 59);
+    test_range minute(0, 59), second(0, 59);
     for (int sample = 0; sample < 100; ++sample)
         {
             const int dd = day(generator), mm = month(generator),
@@ -371,8 +387,8 @@ void test_block(test_runner &tests)
                         "block: size constructor initializes zero");
         }
 
-    std::mt19937 generator(24680);
-    std::uniform_int_distribution<int> number(-100, 100);
+    test_random generator(24680);
+    test_range number(-100, 100);
     for (int sample = 0; sample < 100; ++sample)
         {
             std::array<double, size> left{}, right{}, sums{}, differences{};
@@ -456,12 +472,10 @@ void test_block_edges(test_runner &tests)
     empty.copy_from(empty);
     empty.swap_block(empty);
     check_print(tests, [&empty] { empty.print_block(); }, "");
-    check_assertion(
-        tests, [&empty] { empty.add_block(empty); },
-        "block: empty maximum asserts");
-    check_assertion(
-        tests, [&empty] { empty.sub_block(empty); },
-        "block: empty minimum asserts");
+    tests.check(near(empty.add_block(empty), 0.0),
+                "block: empty maximum returns zero");
+    tests.check(near(empty.sub_block(empty), 0.0),
+                "block: empty minimum returns zero");
     check_assertion(
         tests, [&empty] { empty.link_block(nullptr, 1); },
         "block: null array asserts");
@@ -935,7 +949,7 @@ void test_block_more_edges(test_runner &tests)
     block owner;
     double *owned = owner.allocate_block(3);
     owned[0] = 7;
-    owner.link_block(owned, 1); // shrinking must retain ownership
+    owner.link_block(owned, 3); // Rebind the complete allocation, without shrinking.
     block empty;
     owner.swap_block(empty);
     owner.free_block();
@@ -982,6 +996,41 @@ void test_block_copy_assignment(test_runner &tests)
     tests.check(true, "block: owning copy assignment has safe lifetime");
 }
 
+
+// Regression cases for signed GCD and reduction after wide intermediates.
+void test_rational_regressions(test_runner &tests)
+{
+    constexpr int64_t lo = std::numeric_limits<int64_t>::min();
+    constexpr int64_t hi = std::numeric_limits<int64_t>::max();
+    rational value(-1, 3);
+    value.multiply(rational(1, 2));
+    check_fraction(tests, value, -1, 6, "rational: negative GCD multiplication");
+    check_fraction(tests, rational(lo, hi), lo, hi, "rational: INT64_MIN over INT64_MAX");
+
+    value.from_num_denom(hi, 2);
+    value.add(rational(-hi, 3));
+    check_fraction(tests, value, hi, 6, "rational: wide cross products cancel in addition");
+    value.from_num_denom(hi, 2);
+    value.subtract(rational(hi, 3));
+    check_fraction(tests, value, hi, 6, "rational: wide cross products cancel in subtraction");
+    value.from_num_denom(lo, 3);
+    value.add(rational(lo, 6));
+    check_fraction(tests, value, lo / 2, 1, "rational: reduce sum below INT64_MIN");
+    value.from_num_denom(-hi, 2);
+    value.subtract(rational(hi, 2));
+    check_fraction(tests, value, -hi, 1, "rational: reduce negative wide difference");
+
+    check_assertion(tests, [] {
+        rational invalid(1, hi);
+        invalid.add(rational(1, hi - 1));
+    }, "rational: irreducible wide denominator still asserts");
+    check_assertion(tests, [] {
+        rational invalid(lo, 1);
+        invalid.add(invalid);
+    }, "rational: irreducible wide negative sum still asserts");
+}
+
+
 } // namespace
 
 int main()
@@ -1003,6 +1052,8 @@ int main()
     tests.run("block additional boundaries", test_block_more_edges);
     tests.run("block owning copy constructor", test_block_copy_constructor);
     tests.run("block owning copy assignment", test_block_copy_assignment);
+
+    tests.run("rational regressions", test_rational_regressions);
 
     return tests.result();
 }

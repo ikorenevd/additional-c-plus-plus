@@ -2,7 +2,25 @@
 
 #include <cassert>
 #include <limits>
-#include <numeric>
+// #include <numeric> // Предыдущая версия.
+#include <cstring>
+
+namespace
+{
+    int64_t gcd(int64_t a, int64_t b)
+    {
+        while (b)
+        {
+            int64_t t;
+
+            a %= b;
+            t = a;
+            a = b;
+            b = t;
+        }
+        return a < 0 ? -a : a;
+    }
+}
 
 rational::rational() : numerator(0), denominator(1)
 {
@@ -84,10 +102,10 @@ void rational::from_float(float value)
 
 rational &rational::add(const rational &rhs)
 {
-    int64_t common = std::gcd(denominator, rhs.denominator);
+    int64_t common = gcd(denominator, rhs.denominator);
     const int64_t left_factor = rhs.denominator / common;
     const int64_t right_factor = denominator / common;
-    
+
     assert(numerator >= (std::numeric_limits<int64_t>::min() / left_factor) &&
            numerator <= (std::numeric_limits<int64_t>::max() / left_factor));
     assert(rhs.numerator >= (std::numeric_limits<int64_t>::min() / right_factor) &&
@@ -99,7 +117,7 @@ rational &rational::add(const rational &rhs)
            (right >= 0 || left >= std::numeric_limits<int64_t>::min() - right));
     int64_t num = left + right;
 
-    const int64_t divisor = std::gcd(num % common, common);
+    const int64_t divisor = gcd(num % common, common);
 
     num /= divisor;
     common /= divisor;
@@ -117,7 +135,7 @@ rational &rational::add(const rational &rhs)
 
 rational &rational::subtract(const rational &rhs)
 {
-    int64_t common = std::gcd(denominator, rhs.denominator);
+    int64_t common = gcd(denominator, rhs.denominator);
 
     const int64_t left_factor = rhs.denominator / common;
     const int64_t right_factor = denominator / common;
@@ -133,7 +151,7 @@ rational &rational::subtract(const rational &rhs)
            (right >= 0 || left <= (std::numeric_limits<int64_t>::max() + right)));
 
     int64_t num = left - right;
-    const int64_t divisor = std::gcd(num % common, common);
+    const int64_t divisor = gcd(num % common, common);
     num /= divisor;
     common /= divisor;
 
@@ -155,8 +173,8 @@ rational &rational::multiply(const rational &rhs)
     int64_t c = rhs.numerator,
             d = rhs.denominator;
 
-    const int64_t first_divisor = std::gcd(a % d, d);
-    const int64_t second_divisor = std::gcd(c % b, b);
+    const int64_t first_divisor = gcd(a % d, d);
+    const int64_t second_divisor = gcd(c % b, b);
 
     a /= first_divisor;
     d /= first_divisor;
@@ -188,7 +206,7 @@ rational &rational::divide(const rational &rhs)
 
     rational result(numerator, rhs.numerator);
     const rational factor(rhs.denominator, denominator);
-    
+
     result.multiply(factor);
 
     numerator = result.numerator;
@@ -215,7 +233,7 @@ void rational::from_num_denom(int64_t num, int64_t denom)
         denom /= 2;
     }
 
-    const int64_t divisor = (denom == -1) ? 1 : std::gcd(num % denom, denom);
+    const int64_t divisor = (denom == -1) ? 1 : gcd(num % denom, denom);
     num /= divisor;
     denom /= divisor;
 

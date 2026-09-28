@@ -2,7 +2,7 @@
 #define DATA_TYPE_H
 
 #include <cstdint>
-#include <iostream>
+#include <cstdio>
 
 class date_type
 {
