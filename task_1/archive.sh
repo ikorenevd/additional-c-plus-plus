@@ -9,18 +9,18 @@ if ! command -v zip >/dev/null 2>&1; then
     exit 1
 fi
 
-shopt -s nullglob
-files=()
-for file in *.cpp *.h; do
-    # main.cpp содержит тесты, а не реализацию класса.
-    [[ "$file" == main.cpp ]] && continue
-    files+=("$file")
-done
+files=(
+    block.h block.cpp
+    date_type.h date_type.cpp
+    rational.h rational.cpp
+)
 
-if [[ ${#files[@]} -eq 0 ]]; then
-    printf 'Ошибка: файлы классов .cpp и .h не найдены.\n' >&2
-    exit 1
-fi
+for file in "${files[@]}"; do
+    if [[ ! -f "$file" ]]; then
+        printf 'Ошибка: файл не найден: %s\n' "$file" >&2
+        exit 1
+    fi
+done
 
 # Создаём архив заново, чтобы в нём не оставались удалённые файлы.
 temp_dir=$(mktemp -d)

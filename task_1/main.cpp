@@ -11,9 +11,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <block.h>
-#include <date_type.h>
-#include <rational.h>
+#include "./block.h"
+#include "./date_type.h"
+#include "./rational.h"
 
 namespace
 {

@@ -1,68 +1,49 @@
-SYSTEM := $(shell uname -s)
-
-TARGET := build/task_1
-SOURCES := $(wildcard *.cpp)
-OBJECTS := $(patsubst %.cpp,build/obj/%.o,$(SOURCES))
-DEPFILES := $(OBJECTS:.o=.d)
-
-CPPFLAGS += -I.
-LINUX_CXXFLAGS := \
-	-O3 -mfpmath=sse -fstack-protector-all -g -W -Wall -Wextra -Wunused -Wcast-align -Werror -pedantic -pedantic-errors -Wfloat-equal -Wpointer-arith -Wformat-security -Wmissing-format-attribute -Wformat=1 -Wwrite-strings -Wcast-align -Wno-long-long -Woverloaded-virtual -Wnon-virtual-dtor -Wcast-qual -Wno-suggest-attribute=format
-
-# Apple Clang uses -Wformat instead of -Wformat=1 and does not support
-# -Wno-suggest-attribute=format. SSE floating-point math is unavailable on ARM.
-MACOS_CXXFLAGS := $(filter-out -mfpmath=sse -Wformat=1 -Wno-suggest-attribute=format,$(LINUX_CXXFLAGS)) -Wformat
-
-ifeq ($(SYSTEM),Darwin)
-CXX = clang++
-CXXFLAGS += -std=c++17 $(MACOS_CXXFLAGS)
-else
 CXX = g++
-CXXFLAGS += -std=c++17 $(LINUX_CXXFLAGS)
-endif
-
-# -nostdlib disables implicit libraries and startup files. The classes and
-# process-isolated tests still use C/POSIX; link those dependencies explicitly.
-# Header-only C++ utilities are allowed, but no C++ runtime is linked.
-CXXFLAGS += -fno-exceptions -fno-rtti
-ifeq ($(SYSTEM),Darwin)
-TEST_LIBS := -lSystem
-else
-TEST_START := $(shell $(CXX) -print-file-name=crt1.o) $(shell $(CXX) -print-file-name=crti.o) $(shell $(CXX) -print-file-name=crtbegin.o)
-TEST_END := $(shell $(CXX) -print-file-name=crtend.o) $(shell $(CXX) -print-file-name=crtn.o)
-TEST_LIBS := -lm -lc -lgcc
-# Use the non-PIE startup objects consistently, including on PIE-default GCC.
-CXXFLAGS += -fno-pie
+CPPFLAGS += -I.
+CXXFLAGS += -std=c++17 -O3 -mfpmath=sse -fstack-protector-all -g \
+	-W -Wall -Wextra -Wunused -Wcast-align -Werror -pedantic -pedantic-errors \
+	-Wfloat-equal -Wpointer-arith -Wformat-security -Wmissing-format-attribute \
+	-Wformat=1 -Wwrite-strings -Wno-long-long -Woverloaded-virtual \
+	-Wnon-virtual-dtor -Wcast-qual -Wno-suggest-attribute=format \
+	-nostdlib -fno-exceptions -fno-rtti -fno-pie
 LDFLAGS += -no-pie
-endif
+LDLIBS += -lm -lc -lgcc
 
-.PHONY: all test test-sanitize clean
+# -nostdlib requires explicit startup objects and libraries (Linux/GCC).
+STARTUP := $(shell $(CXX) -print-file-name=crt1.o) \
+	$(shell $(CXX) -print-file-name=crti.o) \
+	$(shell $(CXX) -print-file-name=crtbegin.o)
+FINISH := $(shell $(CXX) -print-file-name=crtend.o) \
+	$(shell $(CXX) -print-file-name=crtn.o)
+OBJECTS := build/main.o build/block.o build/date_type.o build/rational.o build/test_runtime.o
 
-all: $(TARGET)
+.PHONY: all test clean
 
-test: $(TARGET)
-	./$(TARGET)
+all: build/task_1
 
-$(TARGET): $(OBJECTS) Makefile
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TEST_START) $(OBJECTS) $(LDLIBS) $(TEST_LIBS) $(TEST_END) -o $@
+build/task_1: $(OBJECTS) $(STARTUP) $(FINISH) Makefile
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(STARTUP) $(OBJECTS) $(LDLIBS) $(FINISH) -o $@
 
-build/obj/%.o: %.cpp Makefile
-	@mkdir -p $(dir $@)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@
+build/main.o: main.cpp block.h date_type.h rational.h Makefile | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c main.cpp -o $@
+
+build/block.o: block.cpp block.h Makefile | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c block.cpp -o $@
+
+build/date_type.o: date_type.cpp date_type.h Makefile | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c date_type.cpp -o $@
+
+build/rational.o: rational.cpp rational.h Makefile | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c rational.cpp -o $@
+
+build/test_runtime.o: test_runtime.cpp Makefile | build
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c test_runtime.cpp -o $@
+
+build:
+	mkdir -p build
+
+test: build/task_1
+	./build/task_1
 
 clean:
 	rm -rf build
-
--include $(DEPFILES)
-
-# Separate binary: sanitizer flags must not reuse normal object files.
-# Sanitizers require their hosted runtime and the standard allocation operators.
-SANITIZER_TARGET := build/task_1_sanitized
-SANITIZER_SOURCES := $(filter-out test_runtime.cpp,$(SOURCES))
-
-$(SANITIZER_TARGET): $(SOURCES) $(wildcard *.h) Makefile
-	@mkdir -p $(dir $@)
-	$(CXX) $(CPPFLAGS) $(filter-out -nostdlib,$(CXXFLAGS)) -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all $(LDFLAGS) $(SANITIZER_SOURCES) $(LDLIBS) -o $@
-
-test-sanitize: $(SANITIZER_TARGET)
-	./$(SANITIZER_TARGET)
