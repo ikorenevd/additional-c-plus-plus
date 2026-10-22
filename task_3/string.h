@@ -67,7 +67,7 @@ class string
         size_t rfind (const string &substr) const;
     private:
         char *data{};
-        size_t _size{};
+        size_t _size{}; // без учета \0
 };
 
 #endif
