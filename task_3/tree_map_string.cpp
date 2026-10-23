@@ -170,6 +170,71 @@ bool tree_map_string::insert(string&& it, string&& what)
     return 1;
 }
 
+bool tree_map_string::erase(const string& it)
+{
+    tree_node** place = &root;
+
+    // ищем, что удалять
+    while (*place != nullptr)
+    {
+        if ((*place)->key == it)
+            break;
+
+        if ((*place)->key < it)
+            place = &(*place)->right;
+        else
+            place = &(*place)->left;
+    }
+
+    if (*place == nullptr)
+        return 0;
+
+    tree_node* removed = *place;
+    tree_node* node = root;
+
+    // кореектируем размеры
+    while (node != removed)
+    {
+        node->subtree_size--;
+
+        if (node->key < removed->key)
+            node = node->right;
+        else
+            node = node->left;
+    }
+
+    // первые два - случаи одного ребенка
+    // последний - два ребенка, нужно что-то думать
+    if (removed->left == nullptr)
+        *place = removed->right;
+    else if (removed->right == nullptr)
+        *place = removed->left;
+    else
+    {
+        // ищем минимальный элемент в поддереве справа 
+        tree_node** next_place = &removed->right;
+
+        while ((*next_place)->left != nullptr)
+        {
+            (*next_place)->subtree_size--;
+            next_place = &(*next_place)->left;
+        }
+
+        tree_node* next = *next_place;
+
+        *next_place = next->right;
+        next->left = removed->left;
+        next->right = removed->right;
+        next->subtree_size = removed->subtree_size - 1;
+        *place = next;
+    }
+
+    delete removed;
+    _size--;
+
+    return 1;
+}
+
 tree_node* tree_map_string::copy_tree(const tree_node* node)
 {
     if (node == nullptr)
