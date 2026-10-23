@@ -191,7 +191,7 @@ char string::operator[](size_t i) const
 
 bool string::contains(const string& substr) const
 {
-    return (find(substr) != -1);
+    return (find(substr) != (size_t)-1);
 }
 
 // нужно заменять все подстроки what, а не только первую
@@ -203,7 +203,7 @@ bool string::replace(const string& what, const string& val)
     while (pos <= _size)
     {
         size_t found = search(data + pos, _size - pos, what.data, what._size, 0);
-        if (found == -1)
+        if (found == (size_t)-1)
             break;
 
         count++;

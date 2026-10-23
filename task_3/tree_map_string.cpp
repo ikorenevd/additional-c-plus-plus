@@ -1,8 +1,7 @@
 #include "./tree_map_string.h"
 #include "./string.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <exception>
 
 class tree_node
 {
@@ -77,10 +76,7 @@ const string& tree_map_string::at(const string& it) const
     tree_node* node = find_node(it);
  
     if (node == nullptr)
-    {
-        fprintf(stderr, "no element with this key\n");
-        abort();
-    }
+        throw std::exception();
 
     return node->value;
 }
@@ -90,10 +86,7 @@ string& tree_map_string::at(const string& it)
     tree_node* node = find_node(it);
 
     if (node == nullptr)
-    {
-        fprintf(stderr, "no element with this key\n");
-        abort();
-    }
+        throw std::exception();
 
     return node->value;
 }

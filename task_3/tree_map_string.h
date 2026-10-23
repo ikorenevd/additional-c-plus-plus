@@ -20,7 +20,7 @@ class tree_map_string
         bool empty () const;
 
         // Вернуть значение по ключу (it)
-        // Вывести ошибку в stderr и завершить программу, если такого ключа нет
+        // Бросить исключение, если такого ключа нет
         const string &at (const string &it) const;
         string &at (const string &it);
 
