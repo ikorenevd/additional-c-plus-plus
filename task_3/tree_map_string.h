@@ -45,7 +45,10 @@ class tree_map_string
         
         // Вырезать (переместить все узлы) поддерево с корнем в узле с ключом (it)
         // Если такого ключа нет, создать пустое дерево
-        tree_map_string cut_subtree (const string &it) const;
+        // тут было 
+        // tree_map_string cut_subtree (const string &it) const;
+        // но так работать не может
+        tree_map_string cut_subtree (const string &it);
         
         // Вернуть количество значений с ключом строго меньшим заданного (it)
         size_t count_lt (const string &val) const;
@@ -54,6 +57,7 @@ class tree_map_string
         void delete_tree (tree_node *node);
         tree_node *find_node (const string &it) const;
         tree_node *get_or_create (tree_node *&node, const string &it); // для оператора []
+        size_t replace_tree (tree_node *node, const string &what, const string &val);
 
         tree_node *root{};
         size_t _size{};

@@ -2,12 +2,19 @@
 
 #include <assert.h>
 #include <stdio.h> 
+#include <stdlib.h>
 
 namespace
 {
     char* malloc_data(size_t size)
     {
         char* result = new char[size + 1];
+        if (result == nullptr)
+        {
+            fprintf(stderr, "Cannot allocate memroy\n");
+            abort();
+        }
+    
         result[size] = '\0';
         return result;
     }
@@ -187,21 +194,52 @@ bool string::contains(const string& substr) const
     return (find(substr) != -1);
 }
 
+// нужно заменять все подстроки what, а не только первую
 bool string::replace(const string& what, const string& val)
 {
-    size_t position = find(what);
-    if (position == -1)
+    size_t count = 0;
+    size_t pos = 0;
+
+    while (pos <= _size)
+    {
+        size_t found = search(data + pos, _size - pos, what.data, what._size, 0);
+        if (found == -1)
+            break;
+
+        count++;
+        pos += found + what._size;
+        if (what._size == 0)
+            pos++;
+    }
+
+    if (count == 0)
         return 0;
 
-    size_t new_size = _size - what._size + val._size;
+    size_t new_size = _size - count * what._size + count * val._size;
     char* new_data = malloc_data(new_size);
-    
     size_t next = 0;
-    for (size_t i = 0; i < position; i++)
-        new_data[next++] = data[i];
-    for (size_t i = 0; i < val._size; i++)
-        new_data[next++] = val.data[i];
-    for (size_t i = position + what._size; i < _size; i++)
+    pos = 0;
+
+    for (size_t i = 0; i < count; i++)
+    {
+        size_t found = search(data + pos, _size - pos, what.data, what._size, 0);
+
+        for (size_t j = 0; j < found; j++)
+            new_data[next++] = data[pos + j];
+        pos += found;
+
+        for (size_t j = 0; j < val._size; j++)
+            new_data[next++] = val.data[j];
+        pos += what._size;
+
+        if (what._size == 0 && pos < _size)
+        {
+            new_data[next++] = data[pos];
+            pos++;
+        }
+    }
+
+    for (size_t i = pos; i < _size; i++)
         new_data[next++] = data[i];
 
     delete[] data;

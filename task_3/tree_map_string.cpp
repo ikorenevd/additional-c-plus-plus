@@ -235,6 +235,98 @@ bool tree_map_string::erase(const string& it)
     return 1;
 }
 
+// можно со стэком
+size_t tree_map_string::replace(const string& what, const string& val)
+{
+    if (_size == 0)
+        return 0;
+
+    string old_value(what);
+    string new_value(val);
+    if (old_value == new_value)
+        return 0;
+
+    return replace_tree(root, old_value, new_value);
+}
+
+tree_map_string tree_map_string::cut_subtree(const string& it)
+{
+    tree_map_string result;
+    tree_node** place = &root;
+
+    // ищем
+    while (*place != nullptr)
+    {
+        if ((*place)->key == it)
+            break;
+
+        if ((*place)->key < it)
+            place = &(*place)->right;
+        else
+            place = &(*place)->left;
+    }
+
+    // не нашли - возвращем пустое 
+    if (*place == nullptr)
+        return result;
+
+    // туда-сюда, создаем новое
+    tree_node* subtree = *place;
+    size_t subtree_size = subtree->subtree_size;
+    tree_node* node = root;
+
+    while (node != subtree)
+    {
+        node->subtree_size -= subtree_size;
+
+        if (node->key < subtree->key)
+            node = node->right;
+        else
+            node = node->left;
+    }
+
+    *place = nullptr;
+    _size -= subtree_size;
+    result.root = subtree;
+    result._size = subtree_size;
+
+    return result;
+}
+
+size_t tree_map_string::count_lt(const string& val) const
+{
+    size_t result = 0;
+    tree_node* node = root;
+
+    while (node != nullptr)
+    {
+        if (node->key < val)
+        {
+            result++;
+            if (node->left != nullptr)
+                result += node->left->subtree_size;
+
+            node = node->right;
+        }
+        else
+            node = node->left;
+    }
+
+    return result;
+}
+
+size_t tree_map_string::replace_tree(tree_node* node, const string& what, const string& val)
+{
+    if (node == nullptr)
+        return 0;
+
+    size_t result = node->value.replace(what, val);
+    result += replace_tree(node->left, what, val);
+    result += replace_tree(node->right, what, val);
+
+    return result;
+}
+
 tree_node* tree_map_string::copy_tree(const tree_node* node)
 {
     if (node == nullptr)
