@@ -103,6 +103,73 @@ string& tree_map_string::operator[](const string& it)
     return get_or_create(root, it)->value;
 }
 
+bool tree_map_string::insert(const string& it, const string& what)
+{
+    tree_node** place = &root; // ищем куда
+
+    while (*place != nullptr)
+    {
+        if ((*place)->key == it)
+            return 0;
+
+        if ((*place)->key < it)
+            place = &(*place)->right;
+        else
+            place = &(*place)->left;
+    }
+
+    tree_node* inserted = new tree_node(it, what);
+    *place = inserted;
+    _size++;
+
+    tree_node* node = root;
+    while (node != inserted)
+    {
+        node->subtree_size++;
+
+        if (node->key < inserted->key)
+            node = node->right;
+        else
+            node = node->left;
+    }
+
+    return 1;
+}
+
+// todo
+bool tree_map_string::insert(string&& it, string&& what)
+{
+    tree_node** place = &root; // ищем куда
+
+    while (*place != nullptr)
+    {
+        if ((*place)->key == it)
+            return 0;
+
+        if ((*place)->key < it)
+            place = &(*place)->right;
+        else
+            place = &(*place)->left;
+    }
+
+    tree_node* inserted = new tree_node((string&&)it, (string&&)what);
+    *place = inserted;
+    _size++;
+
+    tree_node* node = root;
+    while (node != inserted)
+    {
+        node->subtree_size++;
+
+        if (node->key < inserted->key)
+            node = node->right;
+        else
+            node = node->left;
+    }
+
+    return 1;
+}
+
 tree_node* tree_map_string::copy_tree(const tree_node* node)
 {
     if (node == nullptr)
